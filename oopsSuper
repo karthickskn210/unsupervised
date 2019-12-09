@@ -1,0 +1,376 @@
+# Import libraries
+
+from __future__ import print_function
+
+import numpy as np
+
+import sklearn
+
+import pandas as pd
+
+import tensorflow as tf
+
+from tensorflow.contrib.tensor_forest.python import tensor_forest
+
+from tensorflow.python.ops import resources
+
+
+# Ignore all GPUs, tf random forest does not benefit from it.
+
+import os
+
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
+
+# Import data
+
+data = pd.read_csv('data1.csv')
+
+#Extract feature and target np arrays (inputs for placeholders)
+
+input_x = data.iloc[:, 0:-1].values
+
+input_y = data.iloc[:, -1].values
+
+# Splitting the dataset into the Training set and Test set
+
+from sklearn.model_selection import train_test_split
+
+X_train, X_test, y_train, y_test = train_test_split(input_x, input_y, test_size = 0.25, random_state = 0)
+
+
+data1 = data.iloc[:,:].values
+
+data1
+
+# Parameters
+num_steps = 500 # Total steps to train
+num_classes = 6 # The 10 digits
+num_features = 4 # Each image is 28x28 pixels
+num_trees = 12
+max_nodes = 10
+
+
+# Input and Target data
+X = tf.placeholder(tf.float32, shape=[None, num_features],name="input_x")
+# For random forest, labels must be integers (the class id)
+Y = tf.placeholder(tf.int32, shape=[None], name="input_y")
+'''
+# Random Forest Parameters
+hparams = tensor_forest.ForestHParams(num_classes=num_classes,
+                                      num_features=num_features,
+                                      num_trees=num_trees,
+                                      max_nodes=max_nodes).fill()
+
+
+
+# Build the Random Forest
+
+forest_graph = tensor_forest.RandomForestGraphs(hparams)
+
+
+# Get training graph and loss
+
+train_op = forest_graph.training_graph(X, Y)
+
+loss_op = forest_graph.training_loss(X, Y)
+
+# Measure the accuracy
+
+infer_op, _, _ = forest_graph.inference_graph(X)
+'''
+#correct_prediction = tf.equal(tf.argmax(infer_op, 1), tf.cast(Y, tf.int64))
+
+#accuracy_op = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+'''
+correct_prediction = tf.argmax(infer_op, 1, name="predictions")
+accuracy_op = tf.reduce_mean(tf.cast(tf.equal(correct_prediction,tf.cast(Y, tf.int64)), tf.float32),name="accuracy")
+
+# Initialize the variables (i.e. assign their default value) and forest resources
+
+init_vars = tf.group(tf.global_variables_initializer(),
+                     resources.initialize_resources(resources.shared_resources()))
+
+
+
+# Start TensorFlow session
+
+sess = tf.Session()
+
+
+
+# Run the initializer
+
+sess.run(init_vars)
+
+saver = tf.train.Saver(save_relative_paths=True, max_to_keep=10)
+checkpoint_prefix = 'checkpoints/model'
+
+# Training
+
+for i in range(1, num_steps + 1):
+
+    _, l = sess.run([train_op, loss_op], feed_dict={X: X_train, Y: y_train})
+
+    if i % 50 == 0 or i == 1:
+
+        acc = sess.run(accuracy_op, feed_dict={X: X_train, Y: y_train})
+        
+        print('Step %i, Loss: %f, Acc: %f' % (i, l, acc))
+
+
+print("Done training")
+
+
+# Test Model
+
+print("Test Accuracy:", sess.run(accuracy_op, feed_dict={X: X_test, Y: y_test}))
+
+path = saver.save(sess, checkpoint_prefix, global_step=i)
+print("last Saved model checkpoint to {} at step {}".format(path, i))
+
+
+'''
+hparams = tensor_forest.ForestHParams(num_classes=num_classes,
+                                     num_features=num_features,
+                                     num_trees=num_trees,
+                                     max_nodes=max_nodes).fill()
+forest_graph = tensor_forest.RandomForestGraphs(params=hparams)
+checkpoint_file = tf.train.latest_checkpoint('checkpoints')
+
+pred = []
+graph = tf.Graph()
+with graph.as_default():
+    session_conf = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
+    sess = tf.Session(config=session_conf)
+    with sess.as_default():
+        saver = tf.train.import_meta_graph("{}.meta".format(checkpoint_file), clear_devices=True)
+        saver.restore(sess, checkpoint_file)
+        input_x = graph.get_operation_by_name("input_x").outputs[0]
+        input_y = graph.get_operation_by_name("input_y").outputs[0]
+        predictions = graph.get_operation_by_name("predictions").outputs[0]
+        accuracy = graph.get_operation_by_name("accuracy").outputs[0]
+        acc = sess.run(accuracy, {input_x: X_test, input_y:y_test })
+        predictions = sess.run(predictions, {input_x: X_test })
+        pred.append(predictions)
+
+print(pred)
+#print(data)
+
+
+====================================================================================================================
+
+
+import pandas as pd 
+import tensorflow as tf 
+import sklearn
+from tensorflow.contrib.tensor_forest.python import tensor_forest
+from tensorflow.python.ops import resources
+
+class Supervised(object):
+	
+	def __init__(self, num_steps,num_classes,num_features,num_trees,max_nodes)
+		
+		self.num_steps = num_steps
+		self.num_classes = num_classes
+		self.num_features = num_features
+		self.num_trees = num_trees
+		self.max_nodes = max_nodes
+		self.sess = tf.Session()
+		self.input = tf.placeholder(tf.float32, [None, self.num_features], name = 'input') 
+		
+        self.output = tf.placeholder(tf.int32, shape=[None], name="input_y")
+		self.hparams = tensor_forest.ForestHParams(num_classes=self.num_classes,
+                                      num_features=self.num_features,
+                                      num_trees=self.num_trees,
+                                      max_nodes=self.max_nodes).fill()
+		self.forest_graph = tensor_forest.RandomForestGraphs(hparams)
+
+		self.train_op = forest_graph.training_graph(self.input, self.output)
+
+		self.loss_op = forest_graph.training_loss(self.input, self.output)
+    
+    
+    
+=================================================================================================================
+
+
+# Import libraries
+import numpy as np
+import sklearn
+import pandas as pd
+import tensorflow as tf
+from tensorflow.contrib.tensor_forest.python import tensor_forest
+from tensorflow.python.ops import resources
+
+# Ignore all GPUs, tf random forest does not benefit from it.
+
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
+
+# Import data
+def readData():
+
+	data1 = pd.read_csv('data1.csv')
+	data2 = pd.read_csv('data2.csv')
+
+	return data1,data2
+
+def createModel(data):
+
+	data = data
+	#Extract feature and target np arrays (inputs for placeholders)
+
+	input_x = data.iloc[:, 0:-1].values
+
+	input_y = data.iloc[:, -1].values
+
+	# Splitting the dataset into the Training set and Test set
+
+	from sklearn.model_selection import train_test_split
+
+	X_train, X_test, y_train, y_test = train_test_split(input_x, input_y, test_size = 0.25, random_state = 0)
+
+
+	data1 = data.iloc[:,:].values
+
+	data1
+
+	# Parameters
+	num_steps = 500 # Total steps to train
+	num_classes = 6 # The 10 digits
+	num_features = 4 # Each image is 28x28 pixels
+	num_trees = 12
+	max_nodes = 10
+
+
+	# Input and Target data
+	X = tf.placeholder(tf.float32, shape=[None, num_features],name="input_x")
+	# For random forest, labels must be integers (the class id)
+	Y = tf.placeholder(tf.int32, shape=[None], name="input_y")
+
+	# Random Forest Parameters
+	hparams = tensor_forest.ForestHParams(num_classes=num_classes,
+	                                      num_features=num_features,
+	                                      num_trees=num_trees,
+	                                      max_nodes=max_nodes).fill()
+
+
+
+	# Build the Random Forest
+
+	forest_graph = tensor_forest.RandomForestGraphs(hparams)
+
+
+	# Get training graph and loss
+
+	train_op = forest_graph.training_graph(X, Y)
+
+	loss_op = forest_graph.training_loss(X, Y)
+
+	# Measure the accuracy
+
+	infer_op, _, _ = forest_graph.inference_graph(X)
+	'''
+	#correct_prediction = tf.equal(tf.argmax(infer_op, 1), tf.cast(Y, tf.int64))
+
+	#accuracy_op = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+	'''
+	correct_prediction = tf.argmax(infer_op, 1, name="predictions")
+	accuracy_op = tf.reduce_mean(tf.cast(tf.equal(correct_prediction,tf.cast(Y, tf.int64)), tf.float32),name="accuracy")
+
+	# Initialize the variables (i.e. assign their default value) and forest resources
+
+	init_vars = tf.group(tf.global_variables_initializer(),
+	                     resources.initialize_resources(resources.shared_resources()))
+
+
+
+	# Start TensorFlow session
+
+	sess = tf.Session()
+
+
+
+	# Run the initializer
+
+	sess.run(init_vars)
+
+	saver = tf.train.Saver(save_relative_paths=True, max_to_keep=10)
+	checkpoint_prefix = 'checkpoints/model'
+
+	# Training
+
+	for i in range(1, num_steps + 1):
+
+	    _, l = sess.run([train_op, loss_op], feed_dict={X: X_train, Y: y_train})
+
+	    if i % 50 == 0 or i == 1:
+
+	        acc = sess.run(accuracy_op, feed_dict={X: X_train, Y: y_train})
+	        
+	        print('Step %i, Loss: %f, Acc: %f' % (i, l, acc))
+
+
+	print("Done training")
+
+
+	# Test Model
+
+	print("Test Accuracy:", sess.run(accuracy_op, feed_dict={X: X_test, Y: y_test}))
+
+	path = saver.save(sess, checkpoint_prefix, global_step=i)
+	print("last Saved model checkpoint to {} at step {}".format(path, i))
+
+
+
+def checkModel(data2):
+
+	data = data2
+	#Extract feature and target np arrays (inputs for placeholders)
+
+	x_input = data.iloc[:, 0:-1].values
+
+	# Parameters
+	num_steps = 500 # Total steps to train
+	num_classes = 6 # The 10 digits
+	num_features = 4 # Each image is 28x28 pixels
+	num_trees = 12
+	max_nodes = 10
+
+
+	hparams = tensor_forest.ForestHParams(num_classes=num_classes,
+	                                     num_features=num_features,
+	                                     num_trees=num_trees,
+	                                     max_nodes=max_nodes).fill()
+	forest_graph = tensor_forest.RandomForestGraphs(params=hparams)
+	checkpoint_file = tf.train.latest_checkpoint('checkpoints')
+
+	pred = []
+	graph = tf.Graph()
+	with graph.as_default():
+	    session_conf = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
+	    sess = tf.Session(config=session_conf)
+	    with sess.as_default():
+	        saver = tf.train.import_meta_graph("{}.meta".format(checkpoint_file), clear_devices=True)
+	        saver.restore(sess, checkpoint_file)
+	        input_x = graph.get_operation_by_name("input_x").outputs[0]
+	        input_y = graph.get_operation_by_name("input_y").outputs[0]
+	        predictions = graph.get_operation_by_name("predictions").outputs[0]
+	        accuracy = graph.get_operation_by_name("accuracy").outputs[0]
+	        acc = sess.run(accuracy, {input_x: X_test, input_y:y_test })
+	        predictions = sess.run(predictions, {input_x: x_input })
+	        pred.append(predictions)
+
+	print(pred)
+#print(data)
+
+def main():
+
+	data1,data2 = readData()
+
+	createModel(data1)
+
+	checkModel(data2)
+
+if __name__ == '__main__':
+	main()
